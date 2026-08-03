@@ -12,6 +12,7 @@
         .matched { border-left: 5px solid #2e7d32; }
         .unmatched { border-left: 5px solid #c62828; }
         a { display: block; margin-top: 30px; font-size: 13px; }
+        hr { margin: 25px 0; border: none; border-top: 1px solid #ddd; }
     </style>
 </head>
 <body>
@@ -24,6 +25,11 @@
     <button id="start-btn" onclick="startCamera()">Start Camera</button>
     <button id="capture-btn" onclick="captureAndRecognize()" style="display:none;">Capture & Check In</button>
     <button id="retake-btn" onclick="resetCamera()" style="display:none;">Retake</button>
+
+    <hr>
+    <p>Or upload a photo instead:</p>
+    <input type="file" id="upload-input" accept="image/*">
+    <button onclick="uploadAndRecognize()">Upload & Check In</button>
 
     <div id="results"></div>
 
@@ -78,10 +84,31 @@
 
             document.getElementById("capture-btn").style.display = "none";
             document.getElementById("retake-btn").style.display = "inline-block";
-            document.getElementById("status").textContent = "Photo captured. Checking...";
+
+            await sendToRecognize(blob);
+        }
+
+        async function uploadAndRecognize() {
+            const fileInput = document.getElementById("upload-input");
+            if (!fileInput.files.length) {
+                alert("Please choose a photo first.");
+                return;
+            }
+            const file = fileInput.files[0];
+
+            document.getElementById("captured-photo").src = URL.createObjectURL(file);
+            document.getElementById("captured-photo").style.display = "block";
+            document.getElementById("video").style.display = "none";
+            stopCamera();
+
+            await sendToRecognize(file);
+        }
+
+        async function sendToRecognize(fileOrBlob) {
+            document.getElementById("status").textContent = "Checking...";
 
             const formData = new FormData();
-            formData.append("file", blob, "capture.jpg");
+            formData.append("file", fileOrBlob, "capture.jpg");
 
             const response = await fetch("/recognize", { method: "POST", body: formData });
             const data = await response.json();

@@ -11,6 +11,7 @@
         #status { font-size: 14px; color: #444; }
         pre { background: #f4f4f4; padding: 10px; border-radius: 4px; overflow-x: auto; }
         a { display: block; margin-top: 20px; font-size: 13px; }
+        hr { margin: 25px 0; border: none; border-top: 1px solid #ddd; }
     </style>
 </head>
 <body>
@@ -34,6 +35,11 @@
         <button id="start-btn" onclick="startCamera()">Start Camera</button>
         <button id="capture-btn" onclick="captureAndEnroll()" style="display:none;">Capture & Enroll</button>
         <button id="retake-btn" onclick="resetCamera()" style="display:none;">Retake</button>
+
+        <hr>
+        <p>Or upload a photo instead:</p>
+        <input type="file" id="upload-input" accept="image/*">
+        <button onclick="uploadAndEnroll()">Upload & Enroll</button>
 
         <pre id="enroll-result"></pre>
     </div>
@@ -101,12 +107,33 @@
 
             document.getElementById("capture-btn").style.display = "none";
             document.getElementById("retake-btn").style.display = "inline-block";
+
+            await sendToEnroll(blob);
+        }
+
+        async function uploadAndEnroll() {
+            const fileInput = document.getElementById("upload-input");
+            if (!fileInput.files.length) {
+                alert("Please choose a photo first.");
+                return;
+            }
+            const file = fileInput.files[0];
+
+            document.getElementById("captured-photo").src = URL.createObjectURL(file);
+            document.getElementById("captured-photo").style.display = "block";
+            document.getElementById("video").style.display = "none";
+            stopCamera();
+
+            await sendToEnroll(file);
+        }
+
+        async function sendToEnroll(fileOrBlob) {
             document.getElementById("status").textContent = "Enrolling...";
 
             const formData = new FormData();
             formData.append("name", document.getElementById("enroll-name").value);
             formData.append("roll_number", document.getElementById("enroll-roll").value);
-            formData.append("file", blob, "capture.jpg");
+            formData.append("file", fileOrBlob, "capture.jpg");
 
             const response = await fetch("/enroll", {
                 method: "POST",

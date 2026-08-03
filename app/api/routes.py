@@ -11,6 +11,18 @@ from app.schemas.enrollment_schemas import EnrollmentResponse, EnrollmentError
 from app.services.recognition_service import RecognitionService
 from app.schemas.recognition_schemas import RecognitionResponse
 
+import os
+from fastapi import Header
+from dotenv import load_dotenv
+
+load_dotenv()
+
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
+
+def verify_admin_key(x_admin_key: str = Header(...)):
+    if x_admin_key != ADMIN_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing admin API key.")
+
 
 router = APIRouter()
 
@@ -30,6 +42,7 @@ async def enroll(
     roll_number: str = Form(...),
     file: UploadFile = File(...),
     service: EnrollmentService = Depends(get_enrollment_service),
+    _: None = Depends(verify_admin_key),
 ):
     image_bytes = await file.read()
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")

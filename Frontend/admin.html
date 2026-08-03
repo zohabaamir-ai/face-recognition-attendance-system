@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin — Enroll Student</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 500px; margin: 60px auto; padding: 0 20px; }
+        video, img { width: 100%; border-radius: 8px; margin: 15px 0; }
+        button { padding: 10px 20px; font-size: 15px; cursor: pointer; margin: 5px 5px 5px 0; }
+        input { padding: 8px; margin: 6px 0; width: 100%; box-sizing: border-box; }
+        #status { font-size: 14px; color: #444; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        a { display: block; margin-top: 20px; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <h1>Admin Login</h1>
+        <input type="password" id="admin-key-input" placeholder="Admin API key">
+        <button onclick="attemptLogin()">Login</button>
+        <p id="login-error" style="color:#c62828;"></p>
+    </div>
+
+    <div id="enroll-screen" style="display:none;">
+        <h1>Enroll Student</h1>
+        <input type="text" id="enroll-name" placeholder="Full name">
+        <input type="text" id="enroll-roll" placeholder="Roll number">
+
+        <p id="status">Click "Start Camera" to begin.</p>
+        <video id="video" autoplay style="display:none;"></video>
+        <img id="captured-photo" style="display:none;">
+
+        <button id="start-btn" onclick="startCamera()">Start Camera</button>
+        <button id="capture-btn" onclick="captureAndEnroll()" style="display:none;">Capture & Enroll</button>
+        <button id="retake-btn" onclick="resetCamera()" style="display:none;">Retake</button>
+
+        <pre id="enroll-result"></pre>
+    </div>
+
+    <a href="/">← Back to Kiosk</a>
+
+    <script>
+        let adminKey = null;
+        let currentStream = null;
+
+        function attemptLogin() {
+            const key = document.getElementById("admin-key-input").value;
+            if (!key) {
+                document.getElementById("login-error").textContent = "Please enter a key.";
+                return;
+            }
+            adminKey = key;
+            document.getElementById("login-screen").style.display = "none";
+            document.getElementById("enroll-screen").style.display = "block";
+        }
+
+        async function startCamera() {
+            currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const video = document.getElementById("video");
+            video.srcObject = currentStream;
+            video.style.display = "block";
+            document.getElementById("captured-photo").style.display = "none";
+            document.getElementById("start-btn").style.display = "none";
+            document.getElementById("capture-btn").style.display = "inline-block";
+            document.getElementById("status").textContent = "Camera active. Capture when ready.";
+        }
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+        }
+
+        function resetCamera() {
+            document.getElementById("enroll-result").textContent = "";
+            document.getElementById("retake-btn").style.display = "none";
+            document.getElementById("captured-photo").style.display = "none";
+            document.getElementById("status").textContent = "Click \"Start Camera\" to begin.";
+            document.getElementById("start-btn").style.display = "inline-block";
+        }
+
+        function captureFrame() {
+            const video = document.getElementById("video");
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext("2d").drawImage(video, 0, 0);
+            return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/jpeg"));
+        }
+
+        async function captureAndEnroll() {
+            const blob = await captureFrame();
+
+            const photoUrl = URL.createObjectURL(blob);
+            document.getElementById("captured-photo").src = photoUrl;
+            document.getElementById("captured-photo").style.display = "block";
+            document.getElementById("video").style.display = "none";
+            stopCamera();
+
+            document.getElementById("capture-btn").style.display = "none";
+            document.getElementById("retake-btn").style.display = "inline-block";
+            document.getElementById("status").textContent = "Enrolling...";
+
+            const formData = new FormData();
+            formData.append("name", document.getElementById("enroll-name").value);
+            formData.append("roll_number", document.getElementById("enroll-roll").value);
+            formData.append("file", blob, "capture.jpg");
+
+            const response = await fetch("/enroll", {
+                method: "POST",
+                headers: { "X-Admin-Key": adminKey },
+                body: formData
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                document.getElementById("status").textContent = "Enrolled successfully.";
+            } else {
+                document.getElementById("status").textContent = "Failed.";
+            }
+            document.getElementById("enroll-result").textContent = JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+</html>

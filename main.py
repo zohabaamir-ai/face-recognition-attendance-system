@@ -8,8 +8,8 @@ app.include_router(router)
 
 @app.get("/")
 async def serve_frontend():
-    return FileResponse("frontend/index.html")
+    return FileResponse("Frontend/index.html")
 
 @app.get("/admin")
 async def serve_admin():
-    return FileResponse("frontend/admin.html")
+    return FileResponse("Frontend/admin.html")

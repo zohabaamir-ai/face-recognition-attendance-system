@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -6,6 +8,7 @@ class RecognitionResult(BaseModel):
     name: str | None
     distance: float
     matched: bool
+    timestamp: datetime | None = None
 
 
 class RecognitionResponse(BaseModel):

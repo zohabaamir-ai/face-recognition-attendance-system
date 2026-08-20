@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import String, DateTime, ForeignKey, ARRAY, Float
+from sqlalchemy import String, DateTime, ForeignKey, ARRAY, Float, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
 
 
@@ -45,7 +45,8 @@ class Student(Base):
     )
 
     attendance_logs: Mapped[list["AttendanceLog"]] = relationship(
-        back_populates="student"
+        back_populates="student",
+        cascade="all, delete-orphan",
     )
 
 
@@ -72,3 +73,47 @@ class AttendanceLog(Base):
     student: Mapped["Student"] = relationship(
         back_populates="attendance_logs"
     )
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
+
+    type: Mapped[str] = mapped_column(
+        String(30)
+    )
+
+    title: Mapped[str] = mapped_column(
+        String(150)
+    )
+
+    message: Mapped[str] = mapped_column(
+        String(500)
+    )
+
+    severity: Mapped[str] = mapped_column(
+        String(20),
+        default="info",
+    )
+
+    is_read: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    related_student_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "students.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+    )
+
+    related_student: Mapped["Student | None"] = relationship()

@@ -1,16 +1,36 @@
 import { Outlet } from 'react-router-dom'
+
 import Header from './Header'
 import Sidebar from './Sidebar'
 
+import { useAppPreferences } from '../context/useAppPreferences'
+
 function DashboardLayout() {
+  const {
+    sidebarCollapsed,
+    compactMode,
+  } = useAppPreferences()
+
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-slate-100 transition-colors dark:bg-slate-950">
       <Sidebar />
 
-      <main className="ml-64 min-h-screen">
+      <main
+        className={`min-h-screen transition-all duration-200 ${
+          sidebarCollapsed
+            ? 'ml-20'
+            : 'ml-64'
+        }`}
+      >
         <Header />
 
-        <section className="p-6">
+        <section
+          className={
+            compactMode
+              ? 'p-4'
+              : 'p-6'
+          }
+        >
           <Outlet />
         </section>
       </main>

@@ -1,3 +1,5 @@
+import { apiFetch } from '../services/api'
+
 import { useEffect, useRef, useState } from 'react'
 import {
   Camera,
@@ -19,7 +21,8 @@ interface RecognitionResult {
 }
 
 interface RecognitionResponse {
-  results: RecognitionResult[]
+  results?: RecognitionResult[]
+  detail?: string
 }
 
 interface AttendanceRecord {
@@ -32,9 +35,6 @@ interface AttendanceRecord {
 }
 
 type PhotoMode = 'upload' | 'camera'
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
 
 function Attendance() {
   const [selectedFile, setSelectedFile] =
@@ -67,7 +67,23 @@ function Attendance() {
   const [searchQuery, setSearchQuery] =
     useState('')
 
-  const [error, setError] = useState('')
+  const [startDate, setStartDate] =
+    useState('')
+
+  const [endDate, setEndDate] =
+    useState('')
+
+  const [appliedSearch, setAppliedSearch] =
+    useState('')
+
+  const [appliedStartDate, setAppliedStartDate] =
+    useState('')
+
+  const [appliedEndDate, setAppliedEndDate] =
+    useState('')
+
+  const [error, setError] =
+    useState('')
 
   const videoRef =
     useRef<HTMLVideoElement | null>(null)
@@ -94,47 +110,65 @@ function Attendance() {
     }
   }, [previewUrl])
 
-  async function fetchAttendanceRecords() {
-    const token =
-      localStorage.getItem('access_token')
-
-    if (!token) {
-      setError('You are not authenticated.')
-      setIsLoadingRecords(false)
-      return
-    }
+  async function fetchAttendanceRecords(
+    search = appliedSearch,
+    fromDate = appliedStartDate,
+    toDate = appliedEndDate,
+  ) {
+    setIsLoadingRecords(true)
+    setError('')
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/attendance`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      )
+      const params =
+        new URLSearchParams()
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          setError(
-            'Your session has expired. Please log in again.',
-          )
-        } else {
-          setError(
-            'Failed to load attendance records.',
-          )
-        }
-
-        return
+      if (search.trim()) {
+        params.set(
+          'search',
+          search.trim(),
+        )
       }
+
+      if (fromDate) {
+        params.set(
+          'start_date',
+          fromDate,
+        )
+      }
+
+      if (toDate) {
+        params.set(
+          'end_date',
+          toDate,
+        )
+      }
+
+      const queryString =
+        params.toString()
+
+      const endpoint =
+        queryString
+          ? `/attendance?${queryString}`
+          : '/attendance'
+
+      const response =
+        await apiFetch(endpoint)
 
       const data: AttendanceRecord[] =
         await response.json()
 
       setRecords(data)
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message ===
+          'AUTHENTICATION_EXPIRED'
+      ) {
+        return
+      }
+
       setError(
-        'Unable to connect to the attendance server.',
+        'Unable to load attendance records.',
       )
     } finally {
       setIsLoadingRecords(false)
@@ -194,11 +228,6 @@ function Attendance() {
       URL.createObjectURL(file),
     )
 
-    /*
-     * Reset the input value so selecting
-     * the same file again still triggers
-     * onChange.
-     */
     event.target.value = ''
   }
 
@@ -239,13 +268,16 @@ function Attendance() {
     if (streamRef.current) {
       streamRef.current
         .getTracks()
-        .forEach((track) => track.stop())
+        .forEach((track) =>
+          track.stop(),
+        )
 
       streamRef.current = null
     }
 
     if (videoRef.current) {
-      videoRef.current.srcObject = null
+      videoRef.current.srcObject =
+        null
     }
 
     setIsCameraOpen(false)
@@ -336,19 +368,6 @@ function Attendance() {
       return
     }
 
-    const token =
-      localStorage.getItem(
-        'access_token',
-      )
-
-    if (!token) {
-      setError(
-        'You are not authenticated.',
-      )
-
-      return
-    }
-
     setIsRecognizing(true)
     setRecognitionResult(null)
     setError('')
@@ -363,13 +382,10 @@ function Attendance() {
 
     try {
       const response =
-        await fetch(
-          `${API_BASE_URL}/recognize`,
+        await apiFetch(
+          '/recognize',
           {
             method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
             body: formData,
           },
         )
@@ -379,13 +395,15 @@ function Attendance() {
 
       if (!response.ok) {
         setError(
-          'Face recognition request failed.',
+          data.detail ||
+            'Face recognition request failed.',
         )
 
         return
       }
 
       if (
+        !data.results ||
         data.results.length === 0
       ) {
         setError(
@@ -400,7 +418,15 @@ function Attendance() {
       )
 
       await fetchAttendanceRecords()
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message ===
+          'AUTHENTICATION_EXPIRED'
+      ) {
+        return
+      }
+
       setError(
         'Unable to connect to the attendance server.',
       )
@@ -424,26 +450,57 @@ function Attendance() {
     startCamera()
   }
 
-  const filteredRecords =
-    records.filter((record) => {
-      const query =
-        searchQuery
-          .trim()
-          .toLowerCase()
+  function handleApplyFilters(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault()
 
-      if (!query) {
-        return true
-      }
-
-      return (
-        record.name
-          .toLowerCase()
-          .includes(query) ||
-        record.roll_number
-          .toLowerCase()
-          .includes(query)
+    if (
+      startDate &&
+      endDate &&
+      endDate < startDate
+    ) {
+      setError(
+        'End date cannot be before start date.',
       )
-    })
+
+      return
+    }
+
+    setAppliedSearch(
+      searchQuery.trim(),
+    )
+
+    setAppliedStartDate(
+      startDate,
+    )
+
+    setAppliedEndDate(
+      endDate,
+    )
+
+    fetchAttendanceRecords(
+      searchQuery.trim(),
+      startDate,
+      endDate,
+    )
+  }
+
+  function handleClearFilters() {
+    setSearchQuery('')
+    setStartDate('')
+    setEndDate('')
+
+    setAppliedSearch('')
+    setAppliedStartDate('')
+    setAppliedEndDate('')
+
+    fetchAttendanceRecords(
+      '',
+      '',
+      '',
+    )
+  }
 
   function formatDateTime(
     timestamp: string,
@@ -800,39 +857,138 @@ function Attendance() {
 
       {/* Entry Records */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="border-b border-slate-200 p-5">
           <div>
             <h2 className="font-semibold text-slate-900">
               Entry Records
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Recent recognized student entries.
+              Search and filter recognized student entries.
             </p>
           </div>
 
-          <div className="relative w-full sm:w-72">
-            <Search
-              size={17}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            />
+          {/* Filters */}
+          <form
+            onSubmit={
+              handleApplyFilters
+            }
+            className="mt-5 grid gap-3 md:grid-cols-4"
+          >
+            {/* Search */}
+            <div className="relative">
+              <Search
+                size={17}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
 
-            <input
-              type="text"
-              value={
-                searchQuery
-              }
-              onChange={(event) =>
-                setSearchQuery(
-                  event.target.value,
-                )
-              }
-              placeholder="Search students..."
-              className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
-            />
-          </div>
+              <input
+                type="text"
+                value={
+                  searchQuery
+                }
+                onChange={(event) =>
+                  setSearchQuery(
+                    event.target.value,
+                  )
+                }
+                placeholder="Search name or roll number"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
+              />
+            </div>
+
+            {/* From */}
+            <div>
+              <input
+                type="date"
+                value={
+                  startDate
+                }
+                onChange={(event) =>
+                  setStartDate(
+                    event.target.value,
+                  )
+                }
+                className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white"
+              />
+            </div>
+
+            {/* To */}
+            <div>
+              <input
+                type="date"
+                value={
+                  endDate
+                }
+                onChange={(event) =>
+                  setEndDate(
+                    event.target.value,
+                  )
+                }
+                className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={
+                  isLoadingRecords
+                }
+                className="h-10 flex-1 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isLoadingRecords
+                  ? 'Loading...'
+                  : 'Apply Filters'}
+              </button>
+
+              <button
+                type="button"
+                onClick={
+                  handleClearFilters
+                }
+                disabled={
+                  isLoadingRecords
+                }
+                className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Clear
+              </button>
+            </div>
+          </form>
         </div>
 
+        {/* Active Filter Summary */}
+        {(appliedSearch ||
+          appliedStartDate ||
+          appliedEndDate) && (
+          <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
+            <p className="text-xs text-slate-500">
+              Active filters:
+
+              {appliedSearch && (
+                <span className="ml-2 font-medium text-slate-700">
+                  Search: "{appliedSearch}"
+                </span>
+              )}
+
+              {appliedStartDate && (
+                <span className="ml-2 font-medium text-slate-700">
+                  From: {appliedStartDate}
+                </span>
+              )}
+
+              {appliedEndDate && (
+                <span className="ml-2 font-medium text-slate-700">
+                  To: {appliedEndDate}
+                </span>
+              )}
+            </p>
+          </div>
+        )}
+
+        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
@@ -869,8 +1025,8 @@ function Attendance() {
                     Loading entry records...
                   </td>
                 </tr>
-              ) : filteredRecords.length > 0 ? (
-                filteredRecords.map(
+              ) : records.length > 0 ? (
+                records.map(
                   (record) => {
                     const formatted =
                       formatDateTime(
@@ -940,7 +1096,7 @@ function Attendance() {
                     </p>
 
                     <p className="mt-1 text-sm text-slate-400">
-                      Recognized students will appear here.
+                      Try changing your filters or recognize a student first.
                     </p>
                   </td>
                 </tr>
@@ -952,14 +1108,12 @@ function Attendance() {
         <div className="border-t border-slate-100 px-5 py-3">
           <p className="text-xs text-slate-500">
             Showing{' '}
-            {
-              filteredRecords.length
-            }{' '}
-            of{' '}
-            {
-              records.length
-            }{' '}
-            records
+            {records.length}{' '}
+            record
+            {records.length ===
+            1
+              ? ''
+              : 's'}
           </p>
         </div>
       </div>

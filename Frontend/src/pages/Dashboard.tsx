@@ -1,209 +1,299 @@
+import { apiFetch } from '../services/api'
+
+import { useEffect, useState } from 'react'
 import {
-  CalendarCheck,
-  UserCheck,
-  UserMinus,
+  Activity,
+  Clock3,
+  Gauge,
   Users,
+  UserRoundCheck,
 } from 'lucide-react'
+
 import StatCard from '../components/dashboard/StatCard'
 
-const recentAttendance = [
-  {
-    name: 'Ahmed Khan',
-    id: 'ST-1001',
-    time: '08:12 AM',
-    status: 'Present',
-  },
-  {
-    name: 'Sara Ahmed',
-    id: 'ST-1002',
-    time: '08:15 AM',
-    status: 'Present',
-  },
-  {
-    name: 'Hamza Ali',
-    id: 'ST-1003',
-    time: '08:21 AM',
-    status: 'Present',
-  },
-  {
-    name: 'Ayesha Malik',
-    id: 'ST-1004',
-    time: '08:47 AM',
-    status: 'Late',
-  },
-  {
-    name: 'Usman Tariq',
-    id: 'ST-1005',
-    time: '--',
-    status: 'Absent',
-  },
-]
+interface DashboardRecentEntry {
+  id: number
+  student_id: number
+  name: string
+  roll_number: string
+  timestamp: string
+  match_distance: number
+}
+
+interface DashboardResponse {
+  total_students: number
+  todays_entries: number
+  unique_students_today: number
+  average_match_distance: number | null
+  recent_entries: DashboardRecentEntry[]
+}
 
 function Dashboard() {
+  const [dashboard, setDashboard] =
+    useState<DashboardResponse | null>(null)
+
+  const [isLoading, setIsLoading] =
+    useState(true)
+
+  const [error, setError] =
+    useState('')
+
+  useEffect(() => {
+    fetchDashboard()
+  }, [])
+
+  async function fetchDashboard() {
+    setIsLoading(true)
+    setError('')
+
+    try {
+      const response =
+        await apiFetch('/dashboard')
+
+      const data =
+        await response.json()
+
+      if (!response.ok) {
+        setError(
+          data.detail ||
+            'Failed to load dashboard data.',
+        )
+
+        return
+      }
+
+      setDashboard(data)
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message ===
+          'AUTHENTICATION_EXPIRED'
+      ) {
+        return
+      }
+
+      setError(
+        'Unable to connect to the attendance server.',
+      )
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  function formatDateTime(
+    timestamp: string,
+  ) {
+    const date =
+      new Date(timestamp)
+
+    return {
+      date:
+        date.toLocaleDateString(
+          'en-GB',
+          {
+            timeZone:
+              'Asia/Karachi',
+          },
+        ),
+
+      time:
+        date.toLocaleTimeString(
+          'en-US',
+          {
+            timeZone:
+              'Asia/Karachi',
+            hour: '2-digit',
+            minute: '2-digit',
+          },
+        ),
+    }
+  }
+
+  function formatMatchDistance(
+    distance: number | null,
+  ) {
+    if (distance === null) {
+      return '—'
+    }
+
+    return distance.toFixed(3)
+  }
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
           Dashboard
         </h1>
 
-        <p className="mt-1 text-sm text-slate-500">
-          Here's what's happening with attendance today.
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Overview of registered students and today's entry activity.
         </p>
       </div>
+
+      {/* Error */}
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+          {error}
+        </div>
+      )}
 
       {/* Statistics */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          title="Total Students"
-          value="248"
-          description="Registered students"
+          title="Registered Students"
+          value={
+            isLoading
+              ? '—'
+              : String(
+                  dashboard?.total_students ??
+                    0,
+                )
+          }
+          description="Students registered in the system"
           icon={Users}
         />
 
         <StatCard
-          title="Present Today"
-          value="219"
-          description="Compared with yesterday"
-          icon={UserCheck}
-          trend="+4.2%"
+          title="Today's Entries"
+          value={
+            isLoading
+              ? '—'
+              : String(
+                  dashboard?.todays_entries ??
+                    0,
+                )
+          }
+          description="Successful entries recorded today"
+          icon={Activity}
         />
 
         <StatCard
-          title="Absent Today"
-          value="29"
-          description="Students absent"
-          icon={UserMinus}
+          title="Unique Students Today"
+          value={
+            isLoading
+              ? '—'
+              : String(
+                  dashboard?.unique_students_today ??
+                    0,
+                )
+          }
+          description="Different students who entered today"
+          icon={UserRoundCheck}
         />
 
         <StatCard
-          title="Attendance Rate"
-          value="88.3%"
-          description="Today's attendance"
-          icon={CalendarCheck}
-          trend="+2.1%"
+          title="Avg. Match Distance"
+          value={
+            isLoading
+              ? '—'
+              : formatMatchDistance(
+                  dashboard?.average_match_distance ??
+                    null,
+                )
+          }
+          description="Lower distance indicates a closer match"
+          icon={Gauge}
         />
       </div>
 
-      {/* Overview */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Weekly Attendance */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-          <div>
-            <h2 className="font-semibold text-slate-900">
-              Attendance Overview
-            </h2>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Attendance performance over the last 7 days.
-            </p>
-          </div>
-
-          <div className="mt-6 flex h-64 items-end gap-4 rounded-lg bg-slate-50 px-6 pb-6 pt-8">
-            {[82, 76, 91, 87, 94, 88, 88].map((value, index) => (
-              <div
-                key={index}
-                className="flex flex-1 flex-col items-center gap-2"
-              >
-                <div className="text-xs font-medium text-slate-500">
-                  {value}%
-                </div>
-
-                <div className="flex h-40 w-full items-end">
-                  <div
-                    className="w-full rounded-t-md bg-slate-800 transition-all"
-                    style={{ height: `${value}%` }}
-                  />
-                </div>
-
-                <span className="text-xs text-slate-400">
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Today'][index]}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Today's Breakdown */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="font-semibold text-slate-900">
-            Today's Attendance
+      {/* Entry Overview */}
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-900">
+        <div>
+          <h2 className="font-semibold text-slate-900 dark:text-white">
+            Entry Overview
           </h2>
 
-          <p className="mt-1 text-sm text-slate-500">
-            Current attendance breakdown.
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Current entry activity based on successful face recognition.
           </p>
-
-          <div className="mt-8 flex flex-col items-center">
-            <div className="flex h-40 w-40 items-center justify-center rounded-full border-[16px] border-slate-200">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-slate-900">
-                  88.3%
-                </p>
-
-                <p className="text-xs text-slate-500">
-                  Present
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 grid w-full grid-cols-2 gap-4">
-              <div className="rounded-lg bg-emerald-50 p-3">
-                <p className="text-xs text-slate-500">
-                  Present
-                </p>
-
-                <p className="mt-1 text-lg font-semibold text-slate-900">
-                  219
-                </p>
-              </div>
-
-              <div className="rounded-lg bg-red-50 p-3">
-                <p className="text-xs text-slate-500">
-                  Absent
-                </p>
-
-                <p className="mt-1 text-lg font-semibold text-slate-900">
-                  29
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
-      </div>
 
-      {/* Recent Attendance */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-          <div>
-            <h2 className="font-semibold text-slate-900">
-              Recent Attendance
-            </h2>
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-lg bg-slate-50 p-5 transition-colors dark:bg-slate-800">
+            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+              <Activity size={17} />
 
-            <p className="mt-1 text-sm text-slate-500">
-              Latest attendance activity.
+              <span className="text-sm">
+                Today's Entries
+              </span>
+            </div>
+
+            <p className="mt-3 text-3xl font-semibold text-slate-900 dark:text-white">
+              {isLoading
+                ? '—'
+                : dashboard?.todays_entries ??
+                  0}
             </p>
           </div>
 
-          <button
-            type="button"
-            className="text-sm font-medium text-slate-700 hover:text-slate-900"
-          >
-            View all
-          </button>
+          <div className="rounded-lg bg-slate-50 p-5 transition-colors dark:bg-slate-800">
+            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+              <Users size={17} />
+
+              <span className="text-sm">
+                Unique Students
+              </span>
+            </div>
+
+            <p className="mt-3 text-3xl font-semibold text-slate-900 dark:text-white">
+              {isLoading
+                ? '—'
+                : dashboard?.unique_students_today ??
+                  0}
+            </p>
+          </div>
+
+          <div className="rounded-lg bg-slate-50 p-5 transition-colors dark:bg-slate-800">
+            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+              <Gauge size={17} />
+
+              <span className="text-sm">
+                Average Match
+              </span>
+            </div>
+
+            <p className="mt-3 text-3xl font-semibold text-slate-900 dark:text-white">
+              {isLoading
+                ? '—'
+                : formatMatchDistance(
+                    dashboard?.average_match_distance ??
+                      null,
+                  )}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Recent Entry Activity */}
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-900">
+        <div className="border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+          <div>
+            <h2 className="font-semibold text-slate-900 dark:text-white">
+              Recent Entry Activity
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Latest successful student entries.
+            </p>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full min-w-[700px] text-left">
             <thead>
-              <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
+              <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400 dark:border-slate-800">
                 <th className="px-6 py-3 font-medium">
                   Student
                 </th>
 
                 <th className="px-6 py-3 font-medium">
-                  Student ID
+                  Roll Number
+                </th>
+
+                <th className="px-6 py-3 font-medium">
+                  Date
                 </th>
 
                 <th className="px-6 py-3 font-medium">
@@ -211,50 +301,114 @@ function Dashboard() {
                 </th>
 
                 <th className="px-6 py-3 font-medium">
-                  Status
+                  Match Distance
                 </th>
               </tr>
             </thead>
 
             <tbody>
-              {recentAttendance.map((record) => (
-                <tr
-                  key={record.id}
-                  className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
-                >
-                  <td className="px-6 py-4">
-                    <p className="text-sm font-medium text-slate-900">
-                      {record.name}
-                    </p>
-                  </td>
-
-                  <td className="px-6 py-4 text-sm text-slate-500">
-                    {record.id}
-                  </td>
-
-                  <td className="px-6 py-4 text-sm text-slate-500">
-                    {record.time}
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                        record.status === 'Present'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : record.status === 'Late'
-                            ? 'bg-amber-50 text-amber-700'
-                            : 'bg-red-50 text-red-700'
-                      }`}
-                    >
-                      {record.status}
-                    </span>
+              {isLoading ? (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-6 py-12 text-center text-sm text-slate-500 dark:text-slate-400"
+                  >
+                    Loading dashboard data...
                   </td>
                 </tr>
-              ))}
+              ) : dashboard?.recent_entries &&
+                dashboard.recent_entries.length >
+                  0 ? (
+                dashboard.recent_entries.map(
+                  (entry) => {
+                    const formatted =
+                      formatDateTime(
+                        entry.timestamp,
+                      )
+
+                    return (
+                      <tr
+                        key={
+                          entry.id
+                        }
+                        className="border-b border-slate-100 last:border-0 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50"
+                      >
+                        <td className="px-6 py-4">
+                          <p className="text-sm font-medium text-slate-900 dark:text-white">
+                            {
+                              entry.name
+                            }
+                          </p>
+                        </td>
+
+                        <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
+                          {
+                            entry.roll_number
+                          }
+                        </td>
+
+                        <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
+                          {
+                            formatted.date
+                          }
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                            <Clock3
+                              size={
+                                15
+                              }
+                            />
+
+                            {
+                              formatted.time
+                            }
+                          </div>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                            {entry.match_distance.toFixed(
+                              3,
+                            )}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  },
+                )
+              ) : (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-6 py-12 text-center"
+                  >
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      No entry activity yet
+                    </p>
+
+                    <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">
+                      Successful recognitions will appear here.
+                    </p>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
-      </div>
+
+        <div className="border-t border-slate-100 px-6 py-3 dark:border-slate-800">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Showing the latest{' '}
+            {
+              dashboard?.recent_entries
+                .length ?? 0
+            }{' '}
+            entries
+          </p>
+        </div>
+      </section>
     </div>
   )
 }

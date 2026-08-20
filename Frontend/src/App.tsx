@@ -5,6 +5,9 @@ import {
   Routes,
 } from 'react-router-dom'
 
+import { AppPreferencesProvider } from './context/AppPreferencesContext'
+import { NotificationProvider } from './context/NotificationContext'
+
 import DashboardLayout from './layouts/DashboardLayout'
 import Dashboard from './pages/Dashboard'
 import Students from './pages/Students'
@@ -18,65 +21,100 @@ function ProtectedRoute({
 }: {
   children: React.ReactNode
 }) {
-  const token = localStorage.getItem('access_token')
+  const token =
+    localStorage.getItem(
+      'access_token',
+    )
 
   if (!token) {
-    return <Navigate to="/login" replace />
+    return (
+      <Navigate
+        to="/login"
+        replace
+      />
+    )
   }
 
   return children
 }
 
+function LoginRoute() {
+  const token =
+    localStorage.getItem(
+      'access_token',
+    )
+
+  if (token) {
+    return (
+      <Navigate
+        to="/dashboard"
+        replace
+      />
+    )
+  }
+
+  return <Login />
+}
+
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
+    <AppPreferencesProvider>
+      <BrowserRouter>
+        <NotificationProvider>
+          <Routes>
+            {/* Login */}
+            <Route
+              path="/login"
+              element={<LoginRoute />}
+            />
 
-        <Route
-          element={
-            <ProtectedRoute>
-              <DashboardLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route
-            path="/"
-            element={
-              <Navigate
-                to="/dashboard"
-                replace
+            {/* Protected application */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route
+                path="/"
+                element={
+                  <Navigate
+                    to="/dashboard"
+                    replace
+                  />
+                }
               />
-            }
-          />
 
-          <Route
-            path="/dashboard"
-            element={<Dashboard />}
-          />
+              <Route
+                path="/dashboard"
+                element={<Dashboard />}
+              />
 
-          <Route
-            path="/students"
-            element={<Students />}
-          />
+              <Route
+                path="/students"
+                element={<Students />}
+              />
 
-          <Route
-            path="/attendance"
-            element={<Attendance />}
-          />
+              <Route
+                path="/attendance"
+                element={<Attendance />}
+              />
 
-          <Route
-            path="/reports"
-            element={<Reports />}
-          />
+              <Route
+                path="/reports"
+                element={<Reports />}
+              />
 
-          <Route
-            path="/settings"
-            element={<Settings />}
-          />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+              <Route
+                path="/settings"
+                element={<Settings />}
+              />
+            </Route>
+          </Routes>
+        </NotificationProvider>
+      </BrowserRouter>
+    </AppPreferencesProvider>
   )
 }
 

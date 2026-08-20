@@ -1,3 +1,5 @@
+import { apiFetch } from '../services/api'
+
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Camera,
@@ -18,36 +20,52 @@ interface Student {
 
 type PhotoMode = 'upload' | 'camera'
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
-
 function Students() {
   const [students, setStudents] = useState<Student[]>([])
   const [searchQuery, setSearchQuery] = useState('')
 
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isAddModalOpen, setIsAddModalOpen] =
+    useState(false)
 
   const [name, setName] = useState('')
-  const [rollNumber, setRollNumber] = useState('')
+  const [rollNumber, setRollNumber] =
+    useState('')
 
-  const [faceFile, setFaceFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [faceFile, setFaceFile] =
+    useState<File | null>(null)
+
+  const [previewUrl, setPreviewUrl] =
+    useState<string | null>(null)
 
   const [photoMode, setPhotoMode] =
     useState<PhotoMode>('upload')
 
-  const [isCameraOpen, setIsCameraOpen] = useState(false)
-  const [isCameraLoading, setIsCameraLoading] = useState(false)
+  const [isCameraOpen, setIsCameraOpen] =
+    useState(false)
 
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isCameraLoading, setIsCameraLoading] =
+    useState(false)
 
-  const [error, setError] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] =
+    useState(false)
 
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
+  const [isLoading, setIsLoading] =
+    useState(true)
+
+  const [error, setError] =
+    useState('')
+
+  const [successMessage, setSuccessMessage] =
+    useState('')
+
+  const videoRef =
+    useRef<HTMLVideoElement | null>(null)
+
+  const canvasRef =
+    useRef<HTMLCanvasElement | null>(null)
+
+  const streamRef =
+    useRef<MediaStream | null>(null)
 
   useEffect(() => {
     fetchStudents()
@@ -58,50 +76,65 @@ function Students() {
   }, [])
 
   const filteredStudents = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase()
+    const query =
+      searchQuery.trim().toLowerCase()
 
     if (!query) {
       return students
     }
 
-    return students.filter((student) => {
-      return (
-        student.name.toLowerCase().includes(query) ||
-        student.roll_number.toLowerCase().includes(query)
-      )
-    })
+    return students.filter(
+      (student) => {
+        return (
+          student.name
+            .toLowerCase()
+            .includes(query) ||
+          student.roll_number
+            .toLowerCase()
+            .includes(query)
+        )
+      },
+    )
   }, [searchQuery, students])
 
   async function fetchStudents() {
     setIsLoading(true)
-
-    const token = localStorage.getItem('access_token')
-
-    if (!token) {
-      setError('You are not authenticated.')
-      setIsLoading(false)
-      return
-    }
+    setError('')
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/students`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      )
+      const response =
+        await apiFetch('/students')
 
       if (!response.ok) {
-        throw new Error('Failed to load students.')
+        const data =
+          await response
+            .json()
+            .catch(() => null)
+
+        setError(
+          data?.detail ||
+            'Failed to load students.',
+        )
+
+        return
       }
 
-      const data: Student[] = await response.json()
+      const data: Student[] =
+        await response.json()
 
       setStudents(data)
-    } catch {
-      setError('Failed to load students.')
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message ===
+          'AUTHENTICATION_EXPIRED'
+      ) {
+        return
+      }
+
+      setError(
+        'Failed to load students.',
+      )
     } finally {
       setIsLoading(false)
     }
@@ -157,7 +190,8 @@ function Students() {
   function handleFileChange(
     event: React.ChangeEvent<HTMLInputElement>,
   ) {
-    const file = event.target.files?.[0] ?? null
+    const file =
+      event.target.files?.[0] ?? null
 
     if (!file) {
       return
@@ -173,9 +207,10 @@ function Students() {
       URL.revokeObjectURL(previewUrl)
     }
 
-    setPreviewUrl(URL.createObjectURL(file))
+    setPreviewUrl(
+      URL.createObjectURL(file),
+    )
 
-    // Allows selecting the same file again.
     event.target.value = ''
   }
 
@@ -196,7 +231,8 @@ function Students() {
       streamRef.current = stream
 
       if (videoRef.current) {
-        videoRef.current.srcObject = stream
+        videoRef.current.srcObject =
+          stream
 
         await videoRef.current.play()
       }
@@ -215,13 +251,16 @@ function Students() {
     if (streamRef.current) {
       streamRef.current
         .getTracks()
-        .forEach((track) => track.stop())
+        .forEach((track) =>
+          track.stop(),
+        )
 
       streamRef.current = null
     }
 
     if (videoRef.current) {
-      videoRef.current.srcObject = null
+      videoRef.current.srcObject =
+        null
     }
 
     setIsCameraOpen(false)
@@ -235,21 +274,31 @@ function Students() {
       return
     }
 
-    const width = video.videoWidth
-    const height = video.videoHeight
+    const width =
+      video.videoWidth
+
+    const height =
+      video.videoHeight
 
     if (!width || !height) {
-      setError('Camera is not ready yet.')
+      setError(
+        'Camera is not ready yet.',
+      )
+
       return
     }
 
     canvas.width = width
     canvas.height = height
 
-    const context = canvas.getContext('2d')
+    const context =
+      canvas.getContext('2d')
 
     if (!context) {
-      setError('Unable to capture the photo.')
+      setError(
+        'Unable to capture the photo.',
+      )
+
       return
     }
 
@@ -264,22 +313,28 @@ function Students() {
     canvas.toBlob(
       (blob) => {
         if (!blob) {
-          setError('Unable to create the captured image.')
+          setError(
+            'Unable to create the captured image.',
+          )
+
           return
         }
 
-        const file = new File(
-          [blob],
-          'student-camera-capture.jpg',
-          {
-            type: 'image/jpeg',
-          },
-        )
+        const file =
+          new File(
+            [blob],
+            'student-camera-capture.jpg',
+            {
+              type: 'image/jpeg',
+            },
+          )
 
         setFaceFile(file)
 
         if (previewUrl) {
-          URL.revokeObjectURL(previewUrl)
+          URL.revokeObjectURL(
+            previewUrl,
+          )
         }
 
         setPreviewUrl(
@@ -315,46 +370,49 @@ function Students() {
       setError(
         'Please upload a photo or take a photo first.',
       )
+
       return
     }
 
-    const token = localStorage.getItem('access_token')
+    const formData =
+      new FormData()
 
-    if (!token) {
-      setError('You are not authenticated.')
-      return
-    }
+    formData.append(
+      'name',
+      name.trim(),
+    )
 
-    const formData = new FormData()
-
-    formData.append('name', name.trim())
     formData.append(
       'roll_number',
       rollNumber.trim(),
     )
-    formData.append('file', faceFile)
+
+    formData.append(
+      'file',
+      faceFile,
+    )
 
     setIsSubmitting(true)
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/enroll`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
+      const response =
+        await apiFetch(
+          '/enroll',
+          {
+            method: 'POST',
+            body: formData,
           },
-          body: formData,
-        },
-      )
+        )
 
-      const data = await response.json()
+      const data =
+        await response.json()
 
       if (!response.ok) {
         setError(
           data.detail ||
             'Student enrollment failed.',
         )
+
         return
       }
 
@@ -365,7 +423,15 @@ function Students() {
       await fetchStudents()
 
       closeModal()
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message ===
+          'AUTHENTICATION_EXPIRED'
+      ) {
+        return
+      }
+
       setError(
         'Unable to connect to the attendance server.',
       )
@@ -377,54 +443,59 @@ function Students() {
   async function handleDeleteStudent(
     student: Student,
   ) {
-    const confirmed = window.confirm(
-      `Delete ${student.name} (${student.roll_number})? This will also delete their attendance records.`,
-    )
+    const confirmed =
+      window.confirm(
+        `Delete ${student.name} (${student.roll_number})? This will also delete their attendance records.`,
+      )
 
     if (!confirmed) {
-      return
-    }
-
-    const token = localStorage.getItem('access_token')
-
-    if (!token) {
-      setError('You are not authenticated.')
       return
     }
 
     setError('')
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/students/${student.id}`,
-        {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`,
+      const response =
+        await apiFetch(
+          `/students/${student.id}`,
+          {
+            method: 'DELETE',
           },
-        },
-      )
+        )
 
-      const data = await response.json()
+      const data =
+        await response.json()
 
       if (!response.ok) {
         setError(
           data.detail ||
             'Failed to delete student.',
         )
+
         return
       }
 
-      setStudents((current) =>
-        current.filter(
-          (item) => item.id !== student.id,
-        ),
+      setStudents(
+        (current) =>
+          current.filter(
+            (item) =>
+              item.id !==
+              student.id,
+          ),
       )
 
       setSuccessMessage(
         `${student.name} was deleted successfully.`,
       )
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message ===
+          'AUTHENTICATION_EXPIRED'
+      ) {
+        return
+      }
+
       setError(
         'Unable to connect to the attendance server.',
       )
@@ -535,7 +606,9 @@ function Students() {
               type="text"
               value={searchQuery}
               onChange={(event) =>
-                setSearchQuery(event.target.value)
+                setSearchQuery(
+                  event.target.value,
+                )
               }
               placeholder="Search students..."
               className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
@@ -575,44 +648,55 @@ function Students() {
                     Loading students...
                   </td>
                 </tr>
-              ) : filteredStudents.length > 0 ? (
-                filteredStudents.map((student) => (
-                  <tr
-                    key={student.id}
-                    className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
-                  >
-                    <td className="px-5 py-4">
-                      <p className="text-sm font-medium text-slate-900">
-                        {student.name}
-                      </p>
-                    </td>
+              ) : filteredStudents.length >
+                0 ? (
+                filteredStudents.map(
+                  (student) => (
+                    <tr
+                      key={
+                        student.id
+                      }
+                      className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                    >
+                      <td className="px-5 py-4">
+                        <p className="text-sm font-medium text-slate-900">
+                          {
+                            student.name
+                          }
+                        </p>
+                      </td>
 
-                    <td className="px-5 py-4 text-sm text-slate-500">
-                      {student.roll_number}
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                        Registered
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleDeleteStudent(
-                            student,
-                          )
+                      <td className="px-5 py-4 text-sm text-slate-500">
+                        {
+                          student.roll_number
                         }
-                        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
-                      >
-                        <Trash2 size={15} />
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                          Registered
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleDeleteStudent(
+                              student,
+                            )
+                          }
+                          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                        >
+                          <Trash2
+                            size={15}
+                          />
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ),
+                )
               ) : (
                 <tr>
                   <td
@@ -637,8 +721,13 @@ function Students() {
 
         <div className="border-t border-slate-100 px-5 py-3">
           <p className="text-xs text-slate-500">
-            Showing {filteredStudents.length} of{' '}
-            {students.length} students
+            Showing{' '}
+            {
+              filteredStudents.length
+            }{' '}
+            of{' '}
+            {students.length}{' '}
+            students
           </p>
         </div>
       </div>
@@ -661,14 +750,20 @@ function Students() {
               <button
                 type="button"
                 onClick={closeModal}
-                disabled={isSubmitting}
+                disabled={
+                  isSubmitting
+                }
                 className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
               >
                 <X size={19} />
               </button>
             </div>
 
-            <form onSubmit={handleAddStudent}>
+            <form
+              onSubmit={
+                handleAddStudent
+              }
+            >
               <div className="space-y-5 px-6 py-5">
                 {/* Name */}
                 <div>
@@ -684,11 +779,16 @@ function Students() {
                     type="text"
                     value={name}
                     onChange={(event) =>
-                      setName(event.target.value)
+                      setName(
+                        event.target
+                          .value,
+                      )
                     }
                     placeholder="e.g. Muhammad Ali"
                     required
-                    disabled={isSubmitting}
+                    disabled={
+                      isSubmitting
+                    }
                     className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-slate-400"
                   />
                 </div>
@@ -707,11 +807,16 @@ function Students() {
                     type="text"
                     value={rollNumber}
                     onChange={(event) =>
-                      setRollNumber(event.target.value)
+                      setRollNumber(
+                        event.target
+                          .value,
+                      )
                     }
                     placeholder="e.g. F2022376133"
                     required
-                    disabled={isSubmitting}
+                    disabled={
+                      isSubmitting
+                    }
                     className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-slate-400"
                   />
                 </div>
@@ -725,42 +830,59 @@ function Students() {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={handleUploadMode}
-                      disabled={isSubmitting}
+                      onClick={
+                        handleUploadMode
+                      }
+                      disabled={
+                        isSubmitting
+                      }
                       className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition ${
-                        photoMode === 'upload'
+                        photoMode ===
+                        'upload'
                           ? 'border-slate-900 bg-slate-900 text-white'
                           : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                       }`}
                     >
-                      <Upload size={16} />
+                      <Upload
+                        size={16}
+                      />
                       Upload Photo
                     </button>
 
                     <button
                       type="button"
-                      onClick={handleCameraMode}
-                      disabled={isSubmitting}
+                      onClick={
+                        handleCameraMode
+                      }
+                      disabled={
+                        isSubmitting
+                      }
                       className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition ${
-                        photoMode === 'camera'
+                        photoMode ===
+                        'camera'
                           ? 'border-slate-900 bg-slate-900 text-white'
                           : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                       }`}
                     >
-                      <Camera size={16} />
+                      <Camera
+                        size={16}
+                      />
                       Take Photo
                     </button>
                   </div>
                 </div>
 
                 {/* Upload Mode */}
-                {photoMode === 'upload' && (
+                {photoMode ===
+                  'upload' && (
                   <>
                     {previewUrl ? (
                       <div className="space-y-3">
                         <div className="overflow-hidden rounded-lg bg-slate-100">
                           <img
-                            src={previewUrl}
+                            src={
+                              previewUrl
+                            }
                             alt="Selected face"
                             className="aspect-video w-full object-contain"
                           />
@@ -768,8 +890,12 @@ function Students() {
 
                         <button
                           type="button"
-                          onClick={clearSelectedPhoto}
-                          disabled={isSubmitting}
+                          onClick={
+                            clearSelectedPhoto
+                          }
+                          disabled={
+                            isSubmitting
+                          }
                           className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                         >
                           Choose Another Photo
@@ -797,8 +923,12 @@ function Students() {
                           id="student-face"
                           type="file"
                           accept="image/*"
-                          onChange={handleFileChange}
-                          disabled={isSubmitting}
+                          onChange={
+                            handleFileChange
+                          }
+                          disabled={
+                            isSubmitting
+                          }
                           className="hidden"
                         />
                       </label>
@@ -807,13 +937,16 @@ function Students() {
                 )}
 
                 {/* Camera Mode */}
-                {photoMode === 'camera' && (
+                {photoMode ===
+                  'camera' && (
                   <div className="space-y-3">
                     {isCameraOpen ? (
                       <>
                         <div className="overflow-hidden rounded-lg bg-black">
                           <video
-                            ref={videoRef}
+                            ref={
+                              videoRef
+                            }
                             autoPlay
                             muted
                             playsInline
@@ -823,11 +956,17 @@ function Students() {
 
                         <button
                           type="button"
-                          onClick={capturePhoto}
-                          disabled={isCameraLoading}
+                          onClick={
+                            capturePhoto
+                          }
+                          disabled={
+                            isCameraLoading
+                          }
                           className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-slate-900 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
                         >
-                          <Camera size={17} />
+                          <Camera
+                            size={17}
+                          />
 
                           {isCameraLoading
                             ? 'Starting camera...'
@@ -838,7 +977,9 @@ function Students() {
                       <>
                         <div className="overflow-hidden rounded-lg bg-slate-100">
                           <img
-                            src={previewUrl}
+                            src={
+                              previewUrl
+                            }
                             alt="Captured face"
                             className="aspect-video w-full object-contain"
                           />
@@ -846,8 +987,12 @@ function Students() {
 
                         <button
                           type="button"
-                          onClick={handleRetakePhoto}
-                          disabled={isSubmitting}
+                          onClick={
+                            handleRetakePhoto
+                          }
+                          disabled={
+                            isSubmitting
+                          }
                           className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                         >
                           Retake Photo
@@ -858,7 +1003,9 @@ function Students() {
                 )}
 
                 <canvas
-                  ref={canvasRef}
+                  ref={
+                    canvasRef
+                  }
                   className="hidden"
                 />
 
@@ -872,8 +1019,12 @@ function Students() {
               <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
                 <button
                   type="button"
-                  onClick={closeModal}
-                  disabled={isSubmitting}
+                  onClick={
+                    closeModal
+                  }
+                  disabled={
+                    isSubmitting
+                  }
                   className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                 >
                   Cancel
@@ -882,7 +1033,8 @@ function Students() {
                 <button
                   type="submit"
                   disabled={
-                    isSubmitting || !faceFile
+                    isSubmitting ||
+                    !faceFile
                   }
                   className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >

@@ -10,7 +10,12 @@ import {
   UserRound,
 } from 'lucide-react'
 
-import { useState } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
+
 import { useNavigate } from 'react-router-dom'
 
 import { getCurrentUsername, logout } from '../services/auth'
@@ -39,6 +44,51 @@ function Header() {
 
   const [isNotificationsOpen, setIsNotificationsOpen] =
     useState(false)
+
+  const notificationRef =
+    useRef<HTMLDivElement>(null)
+
+  const profileRef =
+    useRef<HTMLDivElement>(null)
+  
+  useEffect(() => {
+    function handleOutsideClick(
+      event: MouseEvent,
+    ) {
+      const target =
+        event.target as Node
+
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(
+          target,
+        )
+      ) {
+        setIsNotificationsOpen(false)
+      }
+
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(
+          target,
+        )
+      ) {
+        setIsProfileOpen(false)
+      }
+    }
+
+    document.addEventListener(
+      'mousedown',
+      handleOutsideClick,
+    )
+
+    return () => {
+      document.removeEventListener(
+        'mousedown',
+        handleOutsideClick,
+      )
+    }
+  }, [])
 
   const username =
     getCurrentUsername() ||
@@ -216,7 +266,9 @@ function Header() {
         </div>
 
         {/* Notifications */}
-        <div className="relative">
+        <div 
+          ref={notificationRef}
+          className="relative">
 
           <button
             type="button"
@@ -279,7 +331,7 @@ function Header() {
                 </div>
 
                 {/* Notifications */}
-                <div className="max-h-[420px] overflow-y-auto">
+                <div className="max-h-105 overflow-y-auto">
 
                   {notificationsLoading ? (
                     <div className="px-4 py-10 text-center">
@@ -378,7 +430,10 @@ function Header() {
         </div>
 
         {/* Profile */}
-        <div className="relative border-l border-slate-200 pl-3 dark:border-slate-700">
+        <div 
+        ref={profileRef}
+        className="relative border-l border-slate-200 pl-3 dark:border-slate-700"
+        >
 
           <button
             type="button"

@@ -4,8 +4,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.repository.admin_repository import AdminRepository
 from app.services.auth_service import AuthService
-from app.schemas.auth_schemas import LoginRequest, LoginResponse
-
+from app.schemas.auth_schemas import LoginRequest, LoginResponse, LoginUser
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -41,4 +40,12 @@ async def login(
     return LoginResponse(
         access_token=access_token,
         token_type="bearer",
+        must_change_password=(
+            admin.must_change_password
+        ),
+        user=LoginUser(
+            id=admin.id,
+            username=admin.username,
+            role=admin.role,
+        ),
     )

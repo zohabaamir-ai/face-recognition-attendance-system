@@ -11,7 +11,13 @@ class Base(DeclarativeBase):
 class Admin(Base):
     __tablename__ = "admins"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
+
+    full_name: Mapped[str] = mapped_column(
+        String(100),
+    )
 
     username: Mapped[str] = mapped_column(
         String(50),
@@ -23,6 +29,66 @@ class Admin(Base):
         String(255)
     )
 
+    role: Mapped[str] = mapped_column(
+        String(30),
+        default="operator",
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+    )
+
+    must_change_password: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+class Device(Base):
+    __tablename__ = "devices"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(100),
+        unique=True,
+    )
+
+    device_key: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+        index=True,
+    )
+
+    location: Mapped[str] = mapped_column(
+        String(100),
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        default=True,
+    )
+
+    last_seen: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    decommissioned_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
 class Student(Base):
     __tablename__ = "students"

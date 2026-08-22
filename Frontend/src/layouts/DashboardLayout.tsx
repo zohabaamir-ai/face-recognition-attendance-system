@@ -1,7 +1,7 @@
 import { Outlet } from 'react-router-dom'
 
-import Header from './Header'
-import Sidebar from './Sidebar'
+import Header from './AppHeader'
+import Sidebar from './AppSidebar'
 
 import { useAppPreferences } from '../context/useAppPreferences'
 
@@ -13,6 +13,7 @@ function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-slate-100 transition-colors dark:bg-slate-950">
+
       <Sidebar />
 
       <main
@@ -22,6 +23,7 @@ function DashboardLayout() {
             : 'ml-64'
         }`}
       >
+
         <Header />
 
         <section
@@ -33,7 +35,9 @@ function DashboardLayout() {
         >
           <Outlet />
         </section>
+
       </main>
+
     </div>
   )
 }

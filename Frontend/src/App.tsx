@@ -11,17 +11,13 @@ import { NotificationProvider } from './context/NotificationContext'
 import DashboardLayout from './layouts/DashboardLayout'
 
 import Dashboard from './pages/Dashboard'
-import Students from './pages/Students'
-import Attendance from './pages/Attendance'
+import Persons from './pages/Persons'
+import Terminals from './pages/Terminals'
+import Activity from './pages/Activity'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
-import ChangePassword from './pages/ChangePassword'
 import EntryTerminal from './pages/EntryTerminal'
-
-import {
-  mustChangePassword,
-} from './services/auth'
 
 function ProtectedRoute({
   children,
@@ -42,43 +38,7 @@ function ProtectedRoute({
     )
   }
 
-  if (mustChangePassword()) {
-    return (
-      <Navigate
-        to="/change-password"
-        replace
-      />
-    )
-  }
-
   return children
-}
-
-function ChangePasswordRoute() {
-  const token =
-    localStorage.getItem(
-      'access_token',
-    )
-
-  if (!token) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-      />
-    )
-  }
-
-  if (!mustChangePassword()) {
-    return (
-      <Navigate
-        to="/dashboard"
-        replace
-      />
-    )
-  }
-
-  return <ChangePassword />
 }
 
 function LoginRoute() {
@@ -87,25 +47,16 @@ function LoginRoute() {
       'access_token',
     )
 
-  if (!token) {
-    return <Login />
-  }
-
-  if (mustChangePassword()) {
+  if (token) {
     return (
       <Navigate
-        to="/change-password"
+        to="/dashboard"
         replace
       />
     )
   }
 
-  return (
-    <Navigate
-      to="/dashboard"
-      replace
-    />
-  )
+  return <Login />
 }
 
 function App() {
@@ -114,21 +65,23 @@ function App() {
       <BrowserRouter>
         <Routes>
 
-          {/* Login */}
+          {/* =================================================
+              AUTHENTICATION
+          ================================================= */}
+
           <Route
             path="/login"
             element={<LoginRoute />}
           />
 
-          {/* First-login / reset-password flow */}
-          <Route
-            path="/change-password"
-            element={
-              <ChangePasswordRoute />
-            }
-          />
+          {/* =================================================
+              PHYSICAL ENTRY TERMINAL
+              
+              This is the external/device interface.
+              It is intentionally NOT part of the
+              management-system sidebar.
+          ================================================= */}
 
-          {/* Entry Terminal */}
           <Route
             path="/terminal"
             element={
@@ -138,7 +91,10 @@ function App() {
             }
           />
 
-          {/* Protected Admin Application */}
+          {/* =================================================
+              MANAGEMENT APPLICATION
+          ================================================= */}
+
           <Route
             element={
               <ProtectedRoute>
@@ -149,6 +105,7 @@ function App() {
             }
           >
 
+            {/* Root */}
             <Route
               path="/"
               element={
@@ -159,26 +116,37 @@ function App() {
               }
             />
 
+            {/* Dashboard */}
             <Route
               path="/dashboard"
               element={<Dashboard />}
             />
 
+            {/* Persons */}
             <Route
-              path="/students"
-              element={<Students />}
+              path="/persons"
+              element={<Persons />}
             />
 
+            {/* Terminal Management */}
             <Route
-              path="/attendance"
-              element={<Attendance />}
+              path="/terminals"
+              element={<Terminals />}
             />
 
+            {/* Activity */}
+            <Route
+              path="/activity"
+              element={<Activity />}
+            />
+
+            {/* Reports */}
             <Route
               path="/reports"
               element={<Reports />}
             />
 
+            {/* Settings */}
             <Route
               path="/settings"
               element={<Settings />}

@@ -5,7 +5,8 @@ import {
   Clock3,
   LockKeyhole,
   LogOut,
-  Search,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings,
   UserRound,
 } from 'lucide-react'
@@ -16,18 +17,41 @@ import {
   useState,
 } from 'react'
 
-import { useNavigate } from 'react-router-dom'
+import {
+  useLocation,
+  useNavigate,
+} from 'react-router-dom'
 
-import { getCurrentUsername, logout } from '../services/auth'
+import {
+  getCurrentUsername,
+  getTokenPayload,
+  logout,
+} from '../services/auth'
 
 import { useAppPreferences } from '../context/useAppPreferences'
 
 import { useNotifications } from '../context/useNotifications'
 
+const pageTitles: Record<
+  string,
+  string
+> = {
+  '/dashboard': 'Dashboard',
+  '/persons': 'Persons',
+  '/terminals': 'Terminals',
+  '/activity': 'Activity',
+  '/reports': 'Reports',
+  '/settings': 'Settings',
+  '/terminal': 'Entry Terminal',
+}
+
 function Header() {
   const navigate = useNavigate()
+  const location = useLocation()
 
   const {
+    sidebarCollapsed,
+    setSidebarCollapsed,
     notificationsEnabled,
   } = useAppPreferences()
 
@@ -39,18 +63,22 @@ function Header() {
     markAllAsRead,
   } = useNotifications()
 
-  const [isProfileOpen, setIsProfileOpen] =
-    useState(false)
+  const [
+    isProfileOpen,
+    setIsProfileOpen,
+  ] = useState(false)
 
-  const [isNotificationsOpen, setIsNotificationsOpen] =
-    useState(false)
+  const [
+    isNotificationsOpen,
+    setIsNotificationsOpen,
+  ] = useState(false)
 
   const notificationRef =
     useRef<HTMLDivElement>(null)
 
   const profileRef =
     useRef<HTMLDivElement>(null)
-  
+
   useEffect(() => {
     function handleOutsideClick(
       event: MouseEvent,
@@ -94,28 +122,47 @@ function Header() {
     getCurrentUsername() ||
     'Administrator'
 
+  const tokenPayload =
+    getTokenPayload()
+
+  const role =
+    tokenPayload?.role ||
+    'administrator'
+
   const displayName =
     username.charAt(0).toUpperCase() +
     username.slice(1)
 
+  const formattedRole =
+    role.charAt(0).toUpperCase() +
+    role.slice(1)
+
   const avatarLetter =
     displayName.charAt(0).toUpperCase()
 
+  const currentPage =
+    pageTitles[
+      location.pathname
+    ] || 'Dashboard'
+
+  function toggleSidebar() {
+    setSidebarCollapsed(
+      !sidebarCollapsed,
+    )
+  }
+
   function handleLogout() {
     setIsProfileOpen(false)
-
     logout()
   }
 
   function handleSettings() {
     setIsProfileOpen(false)
-
     navigate('/settings')
   }
 
   function handleChangePassword() {
     setIsProfileOpen(false)
-
     navigate('/settings')
   }
 
@@ -137,7 +184,7 @@ function Header() {
     try {
       await markAsRead(notificationId)
     } catch {
-      // Keep the notification visible
+      // Keep notification visible
       // if marking it as read fails.
     }
   }
@@ -146,8 +193,7 @@ function Header() {
     try {
       await markAllAsRead()
     } catch {
-      // Keep the current state if the
-      // request fails.
+      // Keep current state if request fails.
     }
   }
 
@@ -239,44 +285,62 @@ function Header() {
   }
 
   return (
-    <header className="relative z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 transition-colors dark:border-slate-800 dark:bg-slate-900">
+    <header className="relative z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 transition-colors sm:px-6 dark:border-slate-800 dark:bg-slate-900">
 
-      {/* Welcome */}
-      <div>
-        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-          Welcome back, {displayName}
-        </p>
-      </div>
+      {/* =====================================================
+          LEFT SIDE
+      ===================================================== */}
 
-      {/* Actions */}
       <div className="flex items-center gap-3">
 
-        {/* Search */}
-        <div className="relative hidden md:block">
-          <Search
-            size={17}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+          aria-label={
+            sidebarCollapsed
+              ? 'Expand sidebar'
+              : 'Collapse sidebar'
+          }
+          title={
+            sidebarCollapsed
+              ? 'Expand sidebar'
+              : 'Collapse sidebar'
+          }
+        >
+          {sidebarCollapsed ? (
+            <PanelLeftOpen size={19} />
+          ) : (
+            <PanelLeftClose size={19} />
+          )}
+        </button>
 
-          <input
-            type="text"
-            placeholder="Search students, attendance..."
-            className="h-9 w-64 rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-500 dark:focus:border-slate-600 dark:focus:bg-slate-800"
-          />
-        </div>
+        <div className="h-5 w-px bg-slate-200 dark:bg-slate-700" />
+
+        <h1 className="text-base font-semibold text-slate-900 sm:text-lg dark:text-white">
+          {currentPage}
+        </h1>
+
+      </div>
+
+      {/* =====================================================
+          RIGHT SIDE
+      ===================================================== */}
+
+      <div className="flex items-center gap-2">
 
         {/* Notifications */}
-        <div 
+        <div
           ref={notificationRef}
-          className="relative">
-
+          className="relative"
+        >
           <button
             type="button"
             onClick={
               handleNotificationToggle
             }
             disabled={!notificationsEnabled}
-            className={`relative rounded-lg p-2 transition ${
+            className={`relative flex h-9 w-9 items-center justify-center rounded-lg transition ${
               notificationsEnabled
                 ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'
                 : 'cursor-default text-slate-300 dark:text-slate-600'
@@ -290,7 +354,7 @@ function Header() {
 
             {notificationsEnabled &&
               unreadCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-semibold text-white">
+                <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-semibold text-white">
                   {unreadCount > 99
                     ? '99+'
                     : unreadCount}
@@ -301,10 +365,10 @@ function Header() {
           {/* Notification Center */}
           {isNotificationsOpen &&
             notificationsEnabled && (
-              <div className="absolute right-0 top-full mt-2 w-96 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+              <div className="absolute right-0 top-full mt-2 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
 
-                {/* Header */}
                 <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+
                   <div>
                     <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
                       Notifications
@@ -323,14 +387,14 @@ function Header() {
                       onClick={
                         handleMarkAllAsRead
                       }
-                      className="text-xs font-medium text-slate-600 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                      className="text-xs font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                     >
                       Mark all as read
                     </button>
                   )}
+
                 </div>
 
-                {/* Notifications */}
                 <div className="max-h-105 overflow-y-auto">
 
                   {notificationsLoading ? (
@@ -341,6 +405,7 @@ function Header() {
                     </div>
                   ) : notifications.length === 0 ? (
                     <div className="px-4 py-10 text-center">
+
                       <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800">
                         <Bell size={18} />
                       </div>
@@ -352,6 +417,7 @@ function Header() {
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-500">
                         New system activity will appear here.
                       </p>
+
                     </div>
                   ) : (
                     notifications.map(
@@ -377,7 +443,9 @@ function Header() {
                           )}
 
                           <div className="min-w-0 flex-1">
+
                             <div className="flex items-start justify-between gap-3">
+
                               <p
                                 className={`text-sm ${
                                   notification.is_read
@@ -393,6 +461,7 @@ function Header() {
                               {!notification.is_read && (
                                 <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-500" />
                               )}
+
                             </div>
 
                             <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
@@ -408,94 +477,98 @@ function Header() {
                                 notification.created_at,
                               )}
                             </div>
+
                           </div>
                         </button>
                       ),
                     )
                   )}
+
                 </div>
 
-                {/* Footer */}
-                {notifications.length > 0 && (
-                  <div className="border-t border-slate-100 px-4 py-2.5 dark:border-slate-800">
-                    <p className="text-center text-[11px] text-slate-400 dark:text-slate-500">
-                      Showing your latest{' '}
-                      {notifications.length}{' '}
-                      notifications
-                    </p>
-                  </div>
-                )}
               </div>
             )}
         </div>
 
-        {/* Profile */}
-        <div 
-        ref={profileRef}
-        className="relative border-l border-slate-200 pl-3 dark:border-slate-700"
-        >
+        {/* Divider */}
+        <div className="mx-1 h-7 w-px bg-slate-200 dark:bg-slate-700" />
 
+        {/* Profile */}
+        <div
+          ref={profileRef}
+          className="relative"
+        >
           <button
             type="button"
             onClick={() =>
               setIsProfileOpen(
-                !isProfileOpen,
+                (current) =>
+                  !current,
               )
             }
-            className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-slate-100 dark:hover:bg-slate-800"
             aria-expanded={
               isProfileOpen
             }
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-sm font-semibold text-white dark:bg-slate-200 dark:text-slate-900">
+
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 text-sm font-semibold text-white">
               {avatarLetter}
             </div>
 
             <div className="hidden text-left sm:block">
-              <p className="text-sm font-medium text-slate-900 dark:text-white">
+
+              <p className="max-w-28 truncate text-sm font-medium text-slate-900 dark:text-white">
                 {displayName}
               </p>
 
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Administrator
+                {formattedRole}
               </p>
+
             </div>
 
             <ChevronDown
-              size={16}
-              className={`text-slate-400 transition-transform ${
+              size={15}
+              className={`hidden text-slate-400 transition-transform sm:block ${
                 isProfileOpen
                   ? 'rotate-180'
                   : ''
               }`}
             />
+
           </button>
 
           {/* Profile Menu */}
           {isProfileOpen && (
-            <div className="absolute right-0 top-full mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+            <div className="absolute right-0 top-full mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
 
-              {/* Identity */}
               <div className="border-b border-slate-100 px-4 py-4 dark:border-slate-800">
+
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-800 text-sm font-semibold text-white dark:bg-slate-200 dark:text-slate-900">
+
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 text-sm font-semibold text-white">
                     {avatarLetter}
                   </div>
 
                   <div className="min-w-0">
+
                     <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
                       {displayName}
                     </p>
 
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Administrator
+                      {formattedRole}
                     </p>
+
                   </div>
+
                 </div>
+
               </div>
 
-              {/* Account Actions */}
               <div className="p-2">
+
                 <button
                   type="button"
                   onClick={() =>
@@ -505,9 +578,7 @@ function Header() {
                   }
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                 >
-                  <UserRound
-                    size={17}
-                  />
+                  <UserRound size={17} />
 
                   My Profile
                 </button>
@@ -519,9 +590,7 @@ function Header() {
                   }
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                 >
-                  <LockKeyhole
-                    size={17}
-                  />
+                  <LockKeyhole size={17} />
 
                   Change Password
                 </button>
@@ -533,16 +602,15 @@ function Header() {
                   }
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                 >
-                  <Settings
-                    size={17}
-                  />
+                  <Settings size={17} />
 
                   Settings
                 </button>
+
               </div>
 
-              {/* Logout */}
               <div className="border-t border-slate-100 p-2 dark:border-slate-800">
+
                 <button
                   type="button"
                   onClick={
@@ -550,16 +618,17 @@ function Header() {
                   }
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
                 >
-                  <LogOut
-                    size={17}
-                  />
+                  <LogOut size={17} />
 
                   Logout
                 </button>
+
               </div>
+
             </div>
           )}
         </div>
+
       </div>
     </header>
   )

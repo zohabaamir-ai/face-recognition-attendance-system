@@ -54,10 +54,12 @@ function SystemLogo({
               gradientUnits="userSpaceOnUse"
             >
               <stop stopColor="#2563EB" />
+
               <stop
                 offset="0.55"
                 stopColor="#06B6D4"
               />
+
               <stop
                 offset="1"
                 stopColor="#0B78E3"
@@ -135,12 +137,14 @@ function SystemLogo({
 
   return (
     <div className="flex items-center gap-3">
+
       <SystemLogo
         variant="mark"
         size={size}
       />
 
       <div className="leading-none">
+
         <div
           className={`font-bold tracking-tight ${
             currentSize.title
@@ -167,7 +171,9 @@ function SystemLogo({
         >
           Management System
         </div>
+
       </div>
+
     </div>
   )
 }
